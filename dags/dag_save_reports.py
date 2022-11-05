@@ -13,7 +13,7 @@ default_args = {
     'retries': 5,
     'retry_delay': timedelta(minutes=5)
 }
-dag = DAG(dag_id="create_history_v5", default_args=default_args, start_date=datetime(2013, 1, 1),
+dag = DAG(dag_id="create_history_v6", default_args=default_args, start_date=datetime(2013, 1, 1),
           schedule_interval='@daily', catchup=False)
 
 
@@ -64,7 +64,7 @@ def data_to_query(df, yest):
         """
         return query_update
     elif (not df_update.empty) and (not df_insert.empty):
-        id_list= list(df_update['ID'])
+        id_list= list(df_update['id'])
         str_id = "'" + "', '".join(str(item) for item in id_list) + "'"
         query_update = f"""UPDATE ONLY public.cyclones_history SET end_date ={yest} WHERE end_date is NULL and id in ({str_id})
         """
