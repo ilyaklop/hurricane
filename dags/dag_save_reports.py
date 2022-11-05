@@ -82,12 +82,11 @@ def load_history(curr_date, yest_date):
     Перезаписываем обратно?!
     """
     p_conn = PostgresHook(postgres_conn_id="postgres_localhost").get_conn()
+    load_query = """select id, status, start_date, end_date
+            from public.cyclones_history where end_date is NULL"""
+    sql_df = pd.read_sql_query(load_query, p_conn)
     try:
         day_df = pd.read_csv(f'/opt/airflow/data/cyclones_{curr_date}.csv', sep=',')
-        load_query = """select id, status, start_date, end_date
-        from public.cyclones_history where end_date is NULL"""
-        sql_df = pd.read_sql_query(load_query, p_conn)
-
         if sql_df.empty:
             # из первого файла формируем начальные статусы
             day_df['end_date'] = np.nan  # тут
@@ -115,9 +114,14 @@ def load_history(curr_date, yest_date):
             f.write(upload_query)
     except FileNotFoundError:
         """возможно обращаемся к базе и закрываем все открытые статусы напрямую инсертом"""
-        upload_query = f"""UPDATE ONLY cyclones_history SET end_date = '{yest_date}'""" #where id = {id} and status= {status}
-        with open("sql/upload_query.sql", 'w') as f:
-            f.write(upload_query)
+        if sql_df.empty:
+            upload_query = """select 400"""
+            with open("sql/upload_query.sql", 'w') as f:
+                f.write(upload_query)
+        else:
+            upload_query = f"""UPDATE ONLY cyclones_history SET end_date = '{yest_date}'""" #where id = {id} and status= {status}
+            with open("sql/upload_query.sql", 'w') as f:
+                f.write(upload_query)
 
 
 task1 = PostgresOperator(task_id='create_postgres_table', postgres_conn_id='postgres_localhost',

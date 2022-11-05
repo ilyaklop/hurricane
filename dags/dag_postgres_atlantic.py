@@ -16,6 +16,7 @@ default_args = {
 
 
 def get_path():
+    #бесполезно, нужно менять формат данных в csv
     print(dag_path)
     try:
         file = pd.read_csv(r"./data/atlantic.csv", low_memory=False)
@@ -30,42 +31,35 @@ def insert_data(ti):
     conn = hook.get_conn()
     c = conn.cursor()
     with open("/opt/airflow/data/atlantic.csv", 'r') as f:
-        c.copy_from(f, 'cyclones', sep=',')
-
-    #c.execute(f"""
-    #COPY cyclones(ID, Name, Date, Time, Event, Status, Latitude, Longitude,
-    #Maximum_Wind, Minimum_Pressure, Low_Wind_NE, Low_Wind_SE, Low_Wind_SW, Low_Wind_NW,
-    #Moderate_Wind_NE, Moderate_Wind_SE, Moderate_Wind_SW, Moderate_Wind_NW, High_Wind_NE,
-    #High_Wind_SE, High_Wind_SW, High_Wind_NW)
-    #FROM '/opt/airflow/data/atlantic.csv' DELIMITER ',' CSV HEADER""")
+        c.copy_from(f, 'cyclones', sep=',', null='')
 
 
-with DAG(dag_id="create_cyclones_v3", default_args=default_args, start_date=datetime(2022, 11, 1),
-         schedule_interval='@daily') as dag:
+with DAG(dag_id="create_cyclones_v4", default_args=default_args, start_date=datetime(2022, 11, 1),
+         schedule_interval='@daily', catchup=False) as dag:
     task1 = PostgresOperator(task_id='create_postgres_table', postgres_conn_id='postgres_localhost',
                              sql="""
-                             create table if not exists cyclones ("ID" text,
-                                                                  "Name" text,
-                                                                  "Date" text,
-                                                                  "Time" text,
-                                                                  "Event" text,
-                                                                  "Status" text,
-                                                                  "Latitude" text,
-                                                                  "Longitude" text,
-                                                                  "Maximum Wind" INT,
-                                                                  "Minimum Pressure" INT,
-                                                                  "Low Wind NE" INT,
-                                                                  "Low Wind SE" INT,
-                                                                  "Low Wind SW" INT,
-                                                                  "Low Wind NW" INT,
-                                                                  "Moderate Wind NE" INT,
-                                                                  "Moderate Wind SE" INT,
-                                                                  "Moderate Wind SW" INT,
-                                                                  "Moderate Wind NW" INT,
-                                                                  "High Wind NE" INT,
-                                                                  "High Wind SE" INT,
-                                                                  "High Wind SW" INT,
-                                                                  "High Wind NW" INT)""")
+                             create table if not exists cyclones ("id" text,
+                                                                  "name" text,
+                                                                  "date" text,
+                                                                  "time" text,
+                                                                  "event" text,
+                                                                  "status" text,
+                                                                  "latitude" text,
+                                                                  "longitude" text,
+                                                                  "maximum_wind" INT,
+                                                                  "minimum_pressure" INT,
+                                                                  "low_wind_ne" INT,
+                                                                  "low_wind_se" INT,
+                                                                  "low_wind_sw" INT,
+                                                                  "low_wind_nw" INT,
+                                                                  "moderate_wind_ne" INT,
+                                                                  "moderate_wind_se" INT,
+                                                                  "moderate_wind_sw" INT,
+                                                                  "moderate_wind_nw" INT,
+                                                                  "high_wind_ne" INT,
+                                                                  "high_wind_se" INT,
+                                                                  "high_wind_sw" INT,
+                                                                  "high_wind_nw" INT)""")
 
     task2 = PythonOperator(task_id='get_path', python_callable=get_path)
 
