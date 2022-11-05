@@ -39,7 +39,7 @@ def load_daily_cyclons(start_date, end_date):
 
     for item in set(df['date']):
         tmp = df[df['date'] == item]
-        tmp.to_csv(f'/opt/airflow/data/cyclones_{item}.csv')
+        tmp.to_csv(f'/opt/airflow/data/cyclones_{item}.csv', index=False)
 
 
 task1 = PythonOperator(task_id='load_daily_cyclons', python_callable=load_daily_cyclons,
