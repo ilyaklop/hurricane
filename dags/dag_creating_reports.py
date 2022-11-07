@@ -18,22 +18,11 @@ default_args = {
 dag = DAG(dag_id="create_reports_v1", default_args=default_args, start_date=datetime(2013, 1, 1),
           schedule_interval='@monthly', catchup=False)
 
-#скорее всего тут не юзер дэйт а ставим {dt} шедулер на monthly и прогоняем все до последней даты
-def load_daily_cyclons(user_date):
+
+def load_daily_cyclons(start_date, end_date):
     """Подключаемся к базе, выкачиваем и группируем данные. Сохраняем в файлы csv
     Должен ли быть сгенерирован  пустой файл, если данных за день нет?
     """
-
-    def add_months(sourcedate, months):
-        month = sourcedate.month - 1 + months
-        year = sourcedate.year + month // 12
-        month = month % 12 + 1
-        day = min(sourcedate.day, calendar.monthrange(year, month)[1])
-        return datetime(year, month, day)
-
-    date = datetime.strptime(user_date, '%Y-%m-%d')
-    start_date = user_date
-    end_date = datetime.strftime(add_months(date, 1), '%Y-%m-%d')
     p_conn = PostgresHook(postgres_conn_id="postgres_localhost").get_conn()
 
     query = f"""select id, date, status 
@@ -50,11 +39,12 @@ def load_daily_cyclons(user_date):
 
     for item in set(df['date']):
         tmp = df[df['date'] == item]
-        tmp.to_csv(f'/opt/airflow/data/cyclones_{item}.csv')
+        tmp.to_csv(f'/opt/airflow/data/cyclones_{item}.csv', index=False)
 
 
+#пасхалка от Илюши с датами
 task1 = PythonOperator(task_id='load_daily_cyclons', python_callable=load_daily_cyclons,
-                       op_kwargs={'user_date': "{{ ds }}"}, dag=dag)
+                       op_kwargs={'start_date': "{{ ds }}", 'end_date': "{{ next_ds }}"}, dag=dag)
 task1
 
 
