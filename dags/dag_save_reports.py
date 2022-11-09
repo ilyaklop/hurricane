@@ -2,6 +2,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.postgres.operators.postgres import PostgresOperator
+from airflow.operators.bash import BashOperator
 
 from datetime import datetime, timedelta
 import pandas as pd
@@ -14,7 +15,7 @@ default_args = {
     'retries': 5,
     'retry_delay': timedelta(minutes=5)
 }
-dag = DAG(dag_id="create_history_v9", default_args=default_args, start_date=datetime(2013, 1, 1),
+dag = DAG(dag_id="create_history_v10", default_args=default_args, start_date=datetime(2013, 1, 1),
           schedule_interval='@daily', catchup=False, max_active_runs=1)
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,7 @@ def load_history(curr_date, yest_date):
         else:
             logger.info("i'm not in sql-empty branch")
             history = pd.merge(sql_df, day_df, on='id', how='outer', suffixes=('_hist', '_curr'))
+            #вот это можно переписать с ON CONFLICT в sql
             history = history[history['status_curr'] != history['status_hist']]
             if history.empty:
                 logger.info('history is empty')
@@ -139,4 +141,15 @@ task2 = PythonOperator(task_id='load_history', python_callable=load_history,
 task3 = PostgresOperator(task_id='upload_data', postgres_conn_id='postgres_localhost',
                          sql="{{ ti.xcom_pull(task_ids='load_history', key='return_value') }}", dag=dag)
 
-task1>>task2>>task3
+task4 = BashOperator(task_id='del_file',
+                     bash_command="""if [ -f /opt/airflow/data/cyclones_{{ ds_nodash }}.csv ]; then 
+                       rm /opt/airflow/data/cyclones_{{ ds_nodash }}.csv 
+                      fi""",
+                     env={"DAY": "{{ ds_nodash }}"}, dag=dag)
+
+# я решил вынести скрипт отката истории в отдельный файл, для удобства запуска исторического расчета
+# задумка такая: текущим дагом выполняем спокойно рачсчет за указанный промежуток времени, без задержек на сенсор
+# и дагом check_updated_file выполняем при необходимости откат истории, после чего опять запускаем текущий даг и
+# на выходе получаем новую историю. В prod версии можно эти таски перенести в dag_save_reports
+
+task1>>task2>>task3>>task4
