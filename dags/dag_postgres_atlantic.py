@@ -15,18 +15,8 @@ default_args = {
 }
 
 
-def get_path():
-    #бесполезно, нужно менять формат данных в csv
-    print(dag_path)
-    try:
-        file = pd.read_csv(r"./data/atlantic.csv", low_memory=False)
-        print('file was read')
-    except Exception as e:
-        print(e)
-
-
-def insert_data(ti):
-    path = ti.xcom_pull(task_ids='get_path')
+def insert_data():
+    # это legacy - проблема с COPY - постоянный конфликт с типами, лучше использовтаь интерфейс DBeaver
     hook = PostgresHook(postgres_conn_id="postgres_localhost")
     conn = hook.get_conn()
     c = conn.cursor()
@@ -61,7 +51,6 @@ with DAG(dag_id="create_cyclones_v4", default_args=default_args, start_date=date
                                                                   "high_wind_sw" INT,
                                                                   "high_wind_nw" INT)""")
 
-    task2 = PythonOperator(task_id='get_path', python_callable=get_path)
 
     task3 = PythonOperator(task_id='incert_data', python_callable=insert_data)
     #task3 = PostgresOperator(task_id='incert_data', postgres_conn_id='postgres_localhost',
@@ -71,4 +60,4 @@ with DAG(dag_id="create_cyclones_v4", default_args=default_args, start_date=date
     #                         High_Wind_SE, High_Wind_SW, High_Wind_NW)
     #                         FROM '/data/atlantic.csv' DELIMITER ',' CSV HEADER""",
     #                         )
-    task1 >> task2 >> task3
+    task1 >> task3

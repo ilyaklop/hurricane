@@ -4,7 +4,6 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 from datetime import datetime, timedelta
-import calendar
 import os
 import pandas as pd
 
@@ -21,7 +20,6 @@ dag = DAG(dag_id="create_reports_v1", default_args=default_args, start_date=date
 
 def load_daily_cyclons(start_date, end_date):
     """Подключаемся к базе, выкачиваем и группируем данные. Сохраняем в файлы csv
-    Должен ли быть сгенерирован  пустой файл, если данных за день нет?
     """
     p_conn = PostgresHook(postgres_conn_id="postgres_localhost").get_conn()
 
@@ -32,7 +30,7 @@ def load_daily_cyclons(start_date, end_date):
     where to_date("date", 'YYYYMMDD') >=to_date('{start_date}', 'YYYY-MM-DD') and 
     to_date("date", 'YYYYMMDD') <to_date('{end_date}', 'YYYY-MM-DD')
     group by id, date) x"""
-
+    #можно с курсором обойтись без пандаса, но это дольше т.к. формируем пустые файлы
     df = pd.read_sql_query(query, p_conn)
     if df.empty:
         raise AirflowSkipException('No rows to load')
